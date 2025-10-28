@@ -1,0 +1,12 @@
+:root {
+    --font-family: 'Inter', sans-serif;
+    --font-family-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+code, pre, .monospace {
+    font-family: 'JetBrains Mono', monospace;
+}

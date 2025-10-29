@@ -2,27 +2,27 @@
   <div class="account-management">
     <div class="toolbar">
       <Button
-        label="Добавить учетную запись"
+        :label="t.toolbar.addAccount"
         icon="pi pi-plus"
         @click="addNewAccount"
-        v-tooltip="'Создать новую учетную запись'"
+        v-tooltip="t.toolbar.addAccountTooltip"
       />
       <Button
-        label="Сохранить изменения"
+        :label="t.toolbar.saveChanges"
         icon="pi pi-save"
         @click="saveAllChanges"
         :disabled="!hasUnsavedChanges"
         v-tooltip="
           hasUnsavedChanges
-            ? 'Сохранить все изменения'
-            : 'Нет изменений для сохранения'
+            ? t.toolbar.saveChangesTooltip
+            : t.toolbar.noChangesTooltip
         "
       />
       <Button
         icon="pi pi-cog"
         @click="openSettings"
         class="p-button-secondary"
-        v-tooltip="'Открыть настройки таблицы'"
+        v-tooltip="t.toolbar.settings"
       />
     </div>
 
@@ -49,7 +49,7 @@
               icon="pi pi-trash"
               class="p-button-danger p-button-text"
               @click="deleteAccount(data.id)"
-              v-tooltip="'Удалить учетную запись'"
+              v-tooltip="t.table.actions.delete"
             />
           </div>
 
@@ -78,17 +78,19 @@
                   @change="change"
                   :class="fieldClass"
                   :options="availableTags"
-                  placeholder="Выберите метки"
+                  :placeholder="t.columns.labels.placeholder"
                   :maxSelectedLabels="3"
                   display="chip"
-                  :selectLabel="'Выбрать'"
-                  :deselectLabel="'Убрать'"
-                  :selectedItemsLabel="'{0} элементов выбрано'"
-                  :emptyFilterMessage="'Результаты не найдены'"
-                  :emptyMessage="'Нет доступных меток'"
-                  v-tooltip="
-                    'Выберите метки из списка. Поле необязательное. Каждая метка не более 50 символов.'
+                  :selectLabel="t.columns.labels.multiselect.selectLabel"
+                  :deselectLabel="t.columns.labels.multiselect.deselectLabel"
+                  :selectedItemsLabel="
+                    t.columns.labels.multiselect.selectedItemsLabel
                   "
+                  :emptyFilterMessage="
+                    t.columns.labels.multiselect.emptyFilterMessage
+                  "
+                  :emptyMessage="t.columns.labels.multiselect.emptyMessage"
+                  v-tooltip="t.columns.labels.tooltip"
                 />
               </template>
             </ValidatedField>
@@ -121,12 +123,10 @@
                   :options="accountTypes"
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="Выбрать тип"
-                  :emptyMessage="'Нет доступных типов'"
-                  :emptyFilterMessage="'Результаты не найдены'"
-                  v-tooltip="
-                    'Выберите тип учетной записи. LDAP - для интеграции с Active Directory, Локальная - для хранения в локальной базе данных.'
-                  "
+                  :placeholder="t.columns.type.placeholder"
+                  :emptyMessage="t.columns.type.emptyMessage"
+                  :emptyFilterMessage="t.columns.type.emptyFilterMessage"
+                  v-tooltip="t.columns.type.tooltip"
                 />
               </template>
             </ValidatedField>
@@ -159,10 +159,8 @@
                   @input="change"
                   :class="fieldClass"
                   :maxlength="100"
-                  placeholder="Введите логин пользователя"
-                  v-tooltip="
-                    'Введите уникальный логин пользователя. Обязательное поле. Минимум 3 символа. Допустимы буквы, цифры и символ подчеркивания.'
-                  "
+                  :placeholder="t.columns.login.placeholder"
+                  v-tooltip="t.columns.login.tooltip"
                 />
               </template>
             </ValidatedField>
@@ -196,21 +194,23 @@
                   @input="change"
                   :class="fieldClass"
                   :maxlength="100"
-                  placeholder="Введите пароль"
+                  :placeholder="t.columns.password.placeholder"
                   :feedback="false"
                   :toggleMask="true"
-                  :promptLabel="'Сложность пароля'"
-                  :weakLabel="'Простой'"
-                  :mediumLabel="'Средний'"
-                  :strongLabel="'Сложный'"
-                  :toggleMaskLabel="'Показать/скрыть пароль'"
+                  :promptLabel="t.columns.password.passwordInput.promptLabel"
+                  :weakLabel="t.columns.password.passwordInput.weakLabel"
+                  :mediumLabel="t.columns.password.passwordInput.mediumLabel"
+                  :strongLabel="t.columns.password.passwordInput.strongLabel"
+                  :toggleMaskLabel="
+                    t.columns.password.passwordInput.toggleMaskLabel
+                  "
                 />
               </template>
             </ValidatedField>
             <span
               v-else
               class="password-placeholder"
-              v-tooltip="'Пароль не требуется для учетных записей типа LDAP'"
+              v-tooltip="t.columns.password.tooltip"
               >—</span
             >
           </div>
@@ -219,18 +219,16 @@
 
       <template #empty>
         <div class="empty-state">
-          <i class="pi pi-users empty-icon"></i>
-          <h3>Нет учетных записей</h3>
-          <p>
-            Нажмите кнопку "Добавить учетную запись" чтобы создать первую запись
-          </p>
+          <i :class="t.table.emptyState.icon + ' empty-icon'"></i>
+          <h3>{{ t.table.emptyState.title }}</h3>
+          <p>{{ t.table.emptyState.description }}</p>
         </div>
       </template>
 
       <template #loading>
         <div class="loading-state">
           <i class="pi pi-spinner pi-spin"></i>
-          <span>Загрузка данных...</span>
+          <span>{{ t.table.loading }}</span>
         </div>
       </template>
     </DataTable>
@@ -238,14 +236,14 @@
     <!-- Модальное окно настроек -->
     <Dialog
       v-model:visible="showSettings"
-      header="Настройки таблицы"
+      :header="t.settings.header"
       :modal="true"
       :style="{ width: '500px' }"
     >
       <div class="settings-content">
-        <h4>Настройки колонок</h4>
+        <h4>{{ t.settings.columns.title }}</h4>
         <DataTable :value="tempColumnSettings" class="p-datatable-sm">
-          <Column field="header" header="Название колонки">
+          <Column :header="t.settings.columns.name">
             <template #body="{ data }">
               <ValidatedField
                 v-model="data.header"
@@ -267,15 +265,15 @@
                     @blur="blur"
                     @input="change"
                     :class="fieldClass"
-                    placeholder="Введите название колонки"
-                    v-tooltip="'Максимум 50 символов.'"
+                    :placeholder="t.settings.columns.namePlaceholder"
+                    v-tooltip="t.settings.columns.nameTooltip"
                   />
                 </template>
               </ValidatedField>
             </template>
           </Column>
 
-          <Column field="visible" header="Видимость">
+          <Column :header="t.settings.columns.visibility">
             <template #body="{ data }">
               <Checkbox
                 v-model="data.visible"
@@ -284,8 +282,8 @@
                 :falseValue="false"
                 v-tooltip="
                   data.visible
-                    ? 'Колонка отображается в таблице'
-                    : 'Колонка скрыта из таблицы'
+                    ? t.settings.columns.visibleTooltip.true
+                    : t.settings.columns.visibleTooltip.false
                 "
               />
             </template>
@@ -293,10 +291,9 @@
         </DataTable>
 
         <div class="tags-settings mt-4">
-          <h4>Настройки тегов</h4>
+          <h4>{{ t.settings.tags.title }}</h4>
           <p class="settings-description">
-            Теги, которые будут доступны для выбора в поле "Метки". Введите тег
-            и нажмите Enter
+            {{ t.settings.tags.description }}
           </p>
           <Chips
             v-model="tempAvailableTags"
@@ -304,26 +301,24 @@
             class="w-full"
             :addOnBlur="true"
             :allowDuplicate="false"
-            v-tooltip="
-              'Добавляйте теги, которые будут отображаться в выпадающем списке меток. Вводите тег и нажимайте Enter для добавления.'
-            "
+            v-tooltip="t.settings.tags.tooltip"
           />
         </div>
       </div>
 
       <template #footer>
         <Button
-          label="Сохранить настройки"
+          :label="t.settings.buttons.save"
           icon="pi pi-check"
           @click="applySettings"
-          v-tooltip="'Применить изменения настроек и закрыть окно'"
+          v-tooltip="t.settings.buttons.saveTooltip"
         />
         <Button
-          label="Отмена"
+          :label="t.settings.buttons.cancel"
           icon="pi pi-times"
           @click="cancelSettings"
           class="p-button-text"
-          v-tooltip="'Закрыть окно без сохранения изменений'"
+          v-tooltip="t.settings.buttons.cancelTooltip"
         />
       </template>
     </Dialog>
@@ -347,7 +342,16 @@ import Dialog from 'primevue/dialog'
 import Checkbox from 'primevue/checkbox'
 import Toast from 'primevue/toast'
 import ValidatedField from '@/components/ValidatedField.vue'
-import { AccountType, ColumnField, type Account, type ColumnSetting, type AccountTypeOption } from '@/types/accounts.ts'
+import { ru } from '@/locales/ru'
+import {
+  AccountType,
+  ColumnField,
+  type Account,
+  type ColumnSetting,
+  type AccountTypeOption,
+} from '@/types/accounts.ts'
+
+const t = ru
 
 // Toast
 const toast = useToast()
@@ -369,29 +373,33 @@ const originalAccounts = ref<Account[]>([])
 
 // Account types
 const accountTypes = ref<AccountTypeOption[]>([
-  { label: 'LDAP', value: AccountType.LDAP },
-  { label: 'Локальная', value: AccountType.LOCAL },
+  { label: t.accountTypes.ldap, value: AccountType.LDAP },
+  { label: t.accountTypes.local, value: AccountType.LOCAL },
 ])
 
 // Column settings (без колонки Действия в настройках)
 const columnSettings = ref<ColumnSetting[]>([
-  { field: ColumnField.LABELS, header: 'Метки', visible: true },
-  { field: ColumnField.TYPE, header: 'Тип записи', visible: true },
-  { field: ColumnField.LOGIN, header: 'Логин', visible: true },
-  { field: ColumnField.PASSWORD, header: 'Пароль', visible: true },
+  { field: ColumnField.LABELS, header: t.columns.labels.header, visible: true },
+  { field: ColumnField.TYPE, header: t.columns.type.header, visible: true },
+  { field: ColumnField.LOGIN, header: t.columns.login.header, visible: true },
+  {
+    field: ColumnField.PASSWORD,
+    header: t.columns.password.header,
+    visible: true,
+  },
 ])
 
 // Правила валидации
 const loginRules = [
   (value: string) => {
     if (value && value.length < 3) {
-      return 'Логин должен содержать минимум 3 символа'
+      return t.validation.login.minLength
     }
     return true
   },
   (value: string) => {
     if (value && !/^[a-zA-Z0-9_]+$/.test(value)) {
-      return 'Логин может содержать только буквы, цифры и символ подчеркивания'
+      return t.validation.login.invalidChars
     }
     return true
   },
@@ -400,7 +408,7 @@ const loginRules = [
 const passwordRules = [
   (value: string) => {
     if (value && value.length < 6) {
-      return 'Пароль должен содержать минимум 6 символов'
+      return t.validation.password.minLength
     }
     return true
   },
@@ -412,7 +420,7 @@ const labelsRules = [
 
     for (const label of value) {
       if (label.length > 50) {
-        return `Метка "${label}" превышает 50 символов`
+        return t.validation.labels.maxLength(label)
       }
     }
 
@@ -422,21 +430,27 @@ const labelsRules = [
 
 const headerRule = (value: string) => {
   if (!value || value.trim().length === 0) {
-    return 'Название колонки не может быть пустым'
+    return t.validation.columnHeader.required
   }
   if (value.length > 50) {
-    return 'Название колонки не должно превышать 50 символов'
+    return t.validation.columnHeader.maxLength
   }
   return true
 }
 
 // Computed - видимые колонки включая действия
 const visibleColumns = computed(() => {
-  const visibleSettings = columnSettings.value.filter((col: ColumnSetting) => col.visible)
+  const visibleSettings = columnSettings.value.filter(
+    (col: ColumnSetting) => col.visible
+  )
   // Всегда добавляем колонку действий в конец
   return [
     ...visibleSettings,
-    { field: ColumnField.ACTIONS, header: 'Действия', visible: true },
+    {
+      field: ColumnField.ACTIONS,
+      header: t.table.actions.header,
+      visible: true,
+    },
   ]
 })
 
@@ -458,7 +472,10 @@ const loadAccounts = () => {
     }))
     originalAccounts.value = JSON.parse(JSON.stringify(savedAccounts))
 
-    const maxId = accounts.value.reduce((max: number, acc: Account) => Math.max(max, acc.id), 0)
+    const maxId = accounts.value.reduce(
+      (max: number, acc: Account) => Math.max(max, acc.id),
+      0
+    )
     nextId = maxId + 1
   }
 
@@ -476,7 +493,9 @@ const loadAccounts = () => {
 const saveAccounts = () => {
   const accountsToSave = accounts.value.map((acc: Account) => ({
     id: acc.id,
-    labels: acc.labelsArray ? acc.labelsArray.map((text: String) => ({ text })) : [],
+    labels: acc.labelsArray
+      ? acc.labelsArray.map((text: string) => ({ text }))
+      : [],
     type: acc.type,
     login: acc.login,
     password: acc.type === AccountType.LOCAL ? acc.password : null,
@@ -489,8 +508,8 @@ const saveAccounts = () => {
 
   toast.add({
     severity: 'success',
-    summary: 'Успешно',
-    detail: 'Все изменения успешно сохранены',
+    summary: t.notifications.success.save.title,
+    detail: t.notifications.success.save.message,
     life: 3000,
   })
 }
@@ -511,8 +530,8 @@ const addNewAccount = () => {
 
   toast.add({
     severity: 'info',
-    summary: 'Новая запись',
-    detail: 'Добавлена новая учетная запись',
+    summary: t.notifications.info.newAccount.title,
+    detail: t.notifications.info.newAccount.message,
     life: 3000,
   })
 }
@@ -525,8 +544,8 @@ const deleteAccount = (id: number) => {
 
   toast.add({
     severity: 'warn',
-    summary: 'Удаление',
-    detail: `Учетная запись "${account?.login || 'без логина'}" была удалена`,
+    summary: t.notifications.warn.delete.title,
+    detail: t.table.actions.deleteConfirmation(account?.login || ''),
     life: 3000,
   })
 }
@@ -568,8 +587,8 @@ const saveAllChanges = () => {
   if (!allValid) {
     toast.add({
       severity: 'error',
-      summary: 'Ошибка валидации',
-      detail: 'Пожалуйста, заполните все обязательные поля корректно',
+      summary: t.notifications.error.validation.title,
+      detail: t.notifications.error.validation.message,
       life: 5000,
     })
     return
@@ -598,19 +617,17 @@ const applySettings = () => {
 
   toast.add({
     severity: 'success',
-    summary: 'Настройки сохранены',
-    detail: 'Настройки таблицы успешно обновлены',
+    summary: t.notifications.success.settings.title,
+    detail: t.notifications.success.settings.message,
     life: 3000,
   })
 }
 
 // Отмена настроек
 const cancelSettings = () => {
-  // Не применяем изменения, просто закрываем окно
   showSettings.value = false
 }
 
-// Загрузка данных при монтировании
 onMounted(() => {
   loadAccounts()
 })

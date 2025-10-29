@@ -4,15 +4,7 @@ import type { ColumnSetting } from '@/types/accounts'
 
 export const useTableSettingsStore = defineStore('tableSettings', () => {
   const columnSettings = ref<ColumnSetting[]>([])
-  const availableTags = ref<string[]>([
-    'админ',
-    'пользователь',
-    'тестовый',
-    'производство',
-  ])
-  const tempColumnSettings = ref<ColumnSetting[]>([])
-  const tempAvailableTags = ref<string[]>([])
-  const showSettingsModal = ref(false)
+  const availableTags = ref<string[]>(['админ', 'пользователь', 'тестовый', 'производство'])
 
   const loadSettings = () => {
     const savedSettings = localStorage.getItem('tableSettings')
@@ -27,26 +19,11 @@ export const useTableSettingsStore = defineStore('tableSettings', () => {
     }
   }
 
-  const saveSettings = () => {
+  const saveSettings = (settings: { columns: ColumnSetting[]; tags: string[] }) => {
+    columnSettings.value = settings.columns
+    availableTags.value = settings.tags
     localStorage.setItem('tableSettings', JSON.stringify(columnSettings.value))
     localStorage.setItem('availableTags', JSON.stringify(availableTags.value))
-  }
-
-  const openSettings = () => {
-    tempColumnSettings.value = JSON.parse(JSON.stringify(columnSettings.value))
-    tempAvailableTags.value = [...availableTags.value]
-    showSettingsModal.value = true
-  }
-
-  const applySettings = () => {
-    columnSettings.value = JSON.parse(JSON.stringify(tempColumnSettings.value))
-    availableTags.value = [...tempAvailableTags.value]
-    saveSettings()
-    showSettingsModal.value = false
-  }
-
-  const cancelSettings = () => {
-    showSettingsModal.value = false
   }
 
   const visibleColumns = computed(() => {
@@ -56,14 +33,8 @@ export const useTableSettingsStore = defineStore('tableSettings', () => {
   return {
     columnSettings,
     availableTags,
-    tempColumnSettings,
-    tempAvailableTags,
-    showSettingsModal,
     visibleColumns,
     loadSettings,
     saveSettings,
-    openSettings,
-    applySettings,
-    cancelSettings,
   }
 })

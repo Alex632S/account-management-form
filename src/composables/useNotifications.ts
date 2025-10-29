@@ -25,7 +25,7 @@ export function useNotifications(t: any) {
     toast.add({
       severity: 'warn',
       summary: t.notifications.warn[type].title,
-      detail: login
+      detail: login 
         ? t.table.actions.deleteConfirmation(login)
         : t.notifications.warn[type].message,
       life: 3000,

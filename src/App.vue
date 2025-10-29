@@ -20,7 +20,7 @@
       />
       <Button
         icon="pi pi-cog"
-        @click="handleOpenSettings"
+        @click="showSettingsModal = true"
         class="p-button-secondary"
         v-tooltip="t.toolbar.settings"
       />
@@ -233,98 +233,13 @@
       </template>
     </DataTable>
 
-    <!-- Модальное окно настроек -->
-    <Dialog
-      v-model:visible="tableSettingsStore.showSettingsModal"
-      :header="t.settings.header"
-      :modal="true"
-      :style="{ width: '500px' }"
-    >
-      <div class="settings-content">
-        <h4>{{ t.settings.columns.title }}</h4>
-        <DataTable
-          :value="tableSettingsStore.tempColumnSettings"
-          class="p-datatable-sm"
-        >
-          <Column :header="t.settings.columns.name">
-            <template #body="{ data }">
-              <ValidatedField
-                v-model="data.header"
-                :required="true"
-                :rules="[headerRule]"
-              >
-                <template
-                  #default="{
-                    modelValue,
-                    updateModelValue,
-                    blur,
-                    change,
-                    class: fieldClass,
-                  }"
-                >
-                  <InputText
-                    :model-value="modelValue"
-                    @update:model-value="updateModelValue"
-                    @blur="blur"
-                    @input="change"
-                    :class="fieldClass"
-                    :placeholder="t.settings.columns.namePlaceholder"
-                    v-tooltip="t.settings.columns.nameTooltip"
-                  />
-                </template>
-              </ValidatedField>
-            </template>
-          </Column>
-
-          <Column :header="t.settings.columns.visibility">
-            <template #body="{ data }">
-              <Checkbox
-                v-model="data.visible"
-                :binary="true"
-                :trueValue="true"
-                :falseValue="false"
-                v-tooltip="
-                  data.visible
-                    ? t.settings.columns.visibleTooltip.true
-                    : t.settings.columns.visibleTooltip.false
-                "
-              />
-            </template>
-          </Column>
-        </DataTable>
-
-        <div class="tags-settings mt-4">
-          <h4>{{ t.settings.tags.title }}</h4>
-          <p class="settings-description">
-            {{ t.settings.tags.description }}
-          </p>
-          <Chips
-            v-model="tableSettingsStore.tempAvailableTags"
-            separator=","
-            class="w-full"
-            :addOnBlur="true"
-            :allowDuplicate="false"
-            v-tooltip="t.settings.tags.tooltip"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <Button
-          :label="t.settings.buttons.save"
-          icon="pi pi-check"
-          @click="handleApplySettings"
-          v-tooltip="t.settings.buttons.saveTooltip"
-        />
-        <Button
-          :label="t.settings.buttons.cancel"
-          icon="pi pi-times"
-          @click="handleCancelSettings"
-          class="p-button-text"
-          v-tooltip="t.settings.buttons.cancelTooltip"
-        />
-      </template>
-    </Dialog>
+    <SettingsModal
+      :model-value="showSettingsModal"
+      :column-settings="tableSettingsStore.columnSettings"
+      :available-tags="tableSettingsStore.availableTags"
+      @update:model-value="showSettingsModal = $event"
+      @save-settings="handleSaveSettings"
+    />
 
     <Toast />
   </div>
@@ -339,21 +254,21 @@ import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
 import Password from 'primevue/password'
 import MultiSelect from 'primevue/multiselect'
-import Chips from 'primevue/chips'
-import Dialog from 'primevue/dialog'
-import Checkbox from 'primevue/checkbox'
 import Toast from 'primevue/toast'
 import ValidatedField from '@/components/ValidatedField.vue'
+import SettingsModal from '@/components/SettingsModal.vue'
 import { ru } from '@/locales/ru'
 import {
   AccountType,
   ColumnField,
   type AccountTypeOption,
+  type ColumnSetting,
 } from '@/types/accounts.ts'
+
 import { useAccountsStore } from '@/stores/accounts'
 import { useTableSettingsStore } from '@/stores/tableSettings'
 import { useValidation } from '@/composables/useValidation'
-import { useNotifications } from '@/composables/useNotifications'
+import { useNotifications } from './composables/useNotifications'
 
 const t = ru
 
@@ -362,11 +277,12 @@ const accountsStore = useAccountsStore()
 const tableSettingsStore = useTableSettingsStore()
 
 // Composables
-const { loginRules, passwordRules, labelsRules, headerRule } = useValidation(t)
+const { loginRules, passwordRules, labelsRules } = useValidation(t)
 const { showSuccess, showInfo, showWarn, showError } = useNotifications(t)
 
 // Local state
 const loading = ref(false)
+const showSettingsModal = ref(false)
 
 // Account types
 const accountTypes = ref<AccountTypeOption[]>([
@@ -410,17 +326,12 @@ const handleSaveAllChanges = () => {
   showSuccess('save')
 }
 
-const handleOpenSettings = () => {
-  tableSettingsStore.openSettings()
-}
-
-const handleApplySettings = () => {
-  tableSettingsStore.applySettings()
+const handleSaveSettings = (settings: {
+  columns: ColumnSetting[]
+  tags: string[]
+}) => {
+  tableSettingsStore.saveSettings(settings)
   showSuccess('settings')
-}
-
-const handleCancelSettings = () => {
-  tableSettingsStore.cancelSettings()
 }
 
 // Field handlers
@@ -448,7 +359,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Стили остаются без изменений */
 .account-management {
   padding: 1rem;
   margin: 0 2rem;
@@ -468,21 +378,6 @@ onMounted(() => {
 .password-placeholder {
   color: #6c757d;
   font-style: italic;
-}
-
-.settings-content {
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.mt-4 {
-  margin-top: 1.5rem;
-}
-
-.settings-description {
-  color: #6b7280;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
 }
 
 .empty-state {

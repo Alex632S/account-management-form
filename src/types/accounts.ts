@@ -1,8 +1,11 @@
+//! Тех. долг
+//@ts-ignore
 export enum AccountType {
   LDAP = 'ldap',
   LOCAL = 'local',
 }
-
+//! Тех. долг
+//@ts-ignore
 export enum ColumnField {
   LABELS = 'labels',
   TYPE = 'type',

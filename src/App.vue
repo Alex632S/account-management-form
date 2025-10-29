@@ -347,42 +347,7 @@ import Dialog from 'primevue/dialog'
 import Checkbox from 'primevue/checkbox'
 import Toast from 'primevue/toast'
 import ValidatedField from '@/components/ValidatedField.vue'
-
-// Enums
-enum AccountType {
-  LDAP = 'ldap',
-  LOCAL = 'local',
-}
-
-enum ColumnField {
-  LABELS = 'labels',
-  TYPE = 'type',
-  LOGIN = 'login',
-  PASSWORD = 'password',
-  ACTIONS = 'actions',
-}
-
-// Interfaces
-interface Account {
-  id: number
-  labelsArray: string[]
-  type: AccountType | null
-  login: string
-  password: string | null
-  touched: boolean
-  isValid?: boolean
-}
-
-interface ColumnSetting {
-  field: ColumnField
-  header: string
-  visible: boolean
-}
-
-interface AccountTypeOption {
-  label: string
-  value: AccountType
-}
+import { AccountType, ColumnField, type Account, type ColumnSetting, type AccountTypeOption } from '@/types/accounts.ts'
 
 // Toast
 const toast = useToast()
@@ -467,7 +432,7 @@ const headerRule = (value: string) => {
 
 // Computed - видимые колонки включая действия
 const visibleColumns = computed(() => {
-  const visibleSettings = columnSettings.value.filter((col) => col.visible)
+  const visibleSettings = columnSettings.value.filter((col: ColumnSetting) => col.visible)
   // Всегда добавляем колонку действий в конец
   return [
     ...visibleSettings,
@@ -493,7 +458,7 @@ const loadAccounts = () => {
     }))
     originalAccounts.value = JSON.parse(JSON.stringify(savedAccounts))
 
-    const maxId = accounts.value.reduce((max, acc) => Math.max(max, acc.id), 0)
+    const maxId = accounts.value.reduce((max: number, acc: Account) => Math.max(max, acc.id), 0)
     nextId = maxId + 1
   }
 
@@ -509,9 +474,9 @@ const loadAccounts = () => {
 
 // Сохранение данных в localStorage
 const saveAccounts = () => {
-  const accountsToSave = accounts.value.map((acc) => ({
+  const accountsToSave = accounts.value.map((acc: Account) => ({
     id: acc.id,
-    labels: acc.labelsArray ? acc.labelsArray.map((text) => ({ text })) : [],
+    labels: acc.labelsArray ? acc.labelsArray.map((text: String) => ({ text })) : [],
     type: acc.type,
     login: acc.login,
     password: acc.type === AccountType.LOCAL ? acc.password : null,
@@ -554,8 +519,8 @@ const addNewAccount = () => {
 
 // Удаление учетной записи
 const deleteAccount = (id: number) => {
-  const account = accounts.value.find((acc) => acc.id === id)
-  accounts.value = accounts.value.filter((acc) => acc.id !== id)
+  const account = accounts.value.find((acc: Account) => acc.id === id)
+  accounts.value = accounts.value.filter((acc: Account) => acc.id !== id)
   hasUnsavedChanges.value = true
 
   toast.add({
@@ -593,12 +558,12 @@ const onValidation = (account: Account, isValid: boolean) => {
 // Сохранение всех изменений
 const saveAllChanges = () => {
   // Помечаем все записи как touched для показа ошибок
-  accounts.value.forEach((account) => {
+  accounts.value.forEach((account: Account) => {
     account.touched = true
   })
 
   // Валидируем все записи перед сохранением
-  const allValid = accounts.value.every((account) => account.isValid)
+  const allValid = accounts.value.every((account: Account) => account.isValid)
 
   if (!allValid) {
     toast.add({

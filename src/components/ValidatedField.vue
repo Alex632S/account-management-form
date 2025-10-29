@@ -33,10 +33,10 @@
 import { computed } from 'vue'
 
 interface Props {
-  modelValue: any
-  component?: any
-  componentProps?: Record<string, any>
-  rules?: ((value: any) => string | boolean)[]
+  modelValue: any //! Дополнить типами 
+  component?: any //! Дополнить типами  
+  componentProps?: Record<string, any> //! Дополнить типами 
+  rules?: ((value: any) => string | boolean)[] //! Дополнить типами 
   required?: boolean
   touched?: boolean
 }
@@ -50,7 +50,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  'update:modelValue': [value: any]
+  'update:modelValue': [value: any] //! Дополнить типами 
   blur: []
   change: []
   validation: [isValid: boolean]
@@ -145,5 +145,4 @@ defineExpose({
 :deep(.field-invalid .p-component) {
   border-color: #e24c4c !important;
 }
-
 </style>

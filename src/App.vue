@@ -4,23 +4,23 @@
       <Button
         :label="t.toolbar.addAccount"
         icon="pi pi-plus"
-        @click="addNewAccount"
+        @click="handleAddAccount"
         v-tooltip="t.toolbar.addAccountTooltip"
       />
       <Button
         :label="t.toolbar.saveChanges"
         icon="pi pi-save"
-        @click="saveAllChanges"
-        :disabled="!hasUnsavedChanges"
+        @click="handleSaveAllChanges"
+        :disabled="!accountsStore.hasUnsavedChanges"
         v-tooltip="
-          hasUnsavedChanges
+          accountsStore.hasUnsavedChanges
             ? t.toolbar.saveChangesTooltip
             : t.toolbar.noChangesTooltip
         "
       />
       <Button
         icon="pi pi-cog"
-        @click="openSettings"
+        @click="handleOpenSettings"
         class="p-button-secondary"
         v-tooltip="t.toolbar.settings"
       />
@@ -31,7 +31,7 @@
       paginator
       :rows="5"
       :rowsPerPageOptions="[5, 10, 20, 50]"
-      :value="accounts"
+      :value="accountsStore.accounts"
       class="p-datatable-sm"
       :loading="loading"
     >
@@ -48,7 +48,7 @@
             <Button
               icon="pi pi-trash"
               class="p-button-danger p-button-text"
-              @click="deleteAccount(data.id)"
+              @click="handleDeleteAccount(data.id)"
               v-tooltip="t.table.actions.delete"
             />
           </div>
@@ -77,7 +77,7 @@
                   @blur="blur"
                   @change="change"
                   :class="fieldClass"
-                  :options="availableTags"
+                  :options="tableSettingsStore.availableTags"
                   :placeholder="t.columns.labels.placeholder"
                   :maxSelectedLabels="3"
                   display="chip"
@@ -235,14 +235,17 @@
 
     <!-- Модальное окно настроек -->
     <Dialog
-      v-model:visible="showSettings"
+      v-model:visible="tableSettingsStore.showSettingsModal"
       :header="t.settings.header"
       :modal="true"
       :style="{ width: '500px' }"
     >
       <div class="settings-content">
         <h4>{{ t.settings.columns.title }}</h4>
-        <DataTable :value="tempColumnSettings" class="p-datatable-sm">
+        <DataTable
+          :value="tableSettingsStore.tempColumnSettings"
+          class="p-datatable-sm"
+        >
           <Column :header="t.settings.columns.name">
             <template #body="{ data }">
               <ValidatedField
@@ -296,7 +299,7 @@
             {{ t.settings.tags.description }}
           </p>
           <Chips
-            v-model="tempAvailableTags"
+            v-model="tableSettingsStore.tempAvailableTags"
             separator=","
             class="w-full"
             :addOnBlur="true"
@@ -310,13 +313,13 @@
         <Button
           :label="t.settings.buttons.save"
           icon="pi pi-check"
-          @click="applySettings"
+          @click="handleApplySettings"
           v-tooltip="t.settings.buttons.saveTooltip"
         />
         <Button
           :label="t.settings.buttons.cancel"
           icon="pi pi-times"
-          @click="cancelSettings"
+          @click="handleCancelSettings"
           class="p-button-text"
           v-tooltip="t.settings.buttons.cancelTooltip"
         />
@@ -329,7 +332,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useToast } from 'primevue/usetoast'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
@@ -346,30 +348,25 @@ import { ru } from '@/locales/ru'
 import {
   AccountType,
   ColumnField,
-  type Account,
-  type ColumnSetting,
   type AccountTypeOption,
 } from '@/types/accounts.ts'
+import { useAccountsStore } from '@/stores/accounts'
+import { useTableSettingsStore } from '@/stores/tableSettings'
+import { useValidation } from '@/composables/useValidation'
+import { useNotifications } from '@/composables/useNotifications'
 
 const t = ru
 
-// Toast
-const toast = useToast()
+// Stores
+const accountsStore = useAccountsStore()
+const tableSettingsStore = useTableSettingsStore()
 
-// Refs
-const accounts = ref<Account[]>([])
+// Composables
+const { loginRules, passwordRules, labelsRules, headerRule } = useValidation(t)
+const { showSuccess, showInfo, showWarn, showError } = useNotifications(t)
+
+// Local state
 const loading = ref(false)
-const showSettings = ref(false)
-const availableTags = ref<string[]>([
-  'админ',
-  'пользователь',
-  'тестовый',
-  'производство',
-])
-const tempAvailableTags = ref<string[]>([])
-const tempColumnSettings = ref<ColumnSetting[]>([])
-const hasUnsavedChanges = ref(false)
-const originalAccounts = ref<Account[]>([])
 
 // Account types
 const accountTypes = ref<AccountTypeOption[]>([
@@ -377,73 +374,9 @@ const accountTypes = ref<AccountTypeOption[]>([
   { label: t.accountTypes.local, value: AccountType.LOCAL },
 ])
 
-// Column settings (без колонки Действия в настройках)
-const columnSettings = ref<ColumnSetting[]>([
-  { field: ColumnField.LABELS, header: t.columns.labels.header, visible: true },
-  { field: ColumnField.TYPE, header: t.columns.type.header, visible: true },
-  { field: ColumnField.LOGIN, header: t.columns.login.header, visible: true },
-  {
-    field: ColumnField.PASSWORD,
-    header: t.columns.password.header,
-    visible: true,
-  },
-])
-
-// Правила валидации
-const loginRules = [
-  (value: string) => {
-    if (value && value.length < 3) {
-      return t.validation.login.minLength
-    }
-    return true
-  },
-  (value: string) => {
-    if (value && !/^[a-zA-Z0-9_]+$/.test(value)) {
-      return t.validation.login.invalidChars
-    }
-    return true
-  },
-]
-
-const passwordRules = [
-  (value: string) => {
-    if (value && value.length < 6) {
-      return t.validation.password.minLength
-    }
-    return true
-  },
-]
-
-const labelsRules = [
-  (value: string[]) => {
-    if (!value || value.length === 0) return true // Необязательное поле
-
-    for (const label of value) {
-      if (label.length > 50) {
-        return t.validation.labels.maxLength(label)
-      }
-    }
-
-    return true
-  },
-]
-
-const headerRule = (value: string) => {
-  if (!value || value.trim().length === 0) {
-    return t.validation.columnHeader.required
-  }
-  if (value.length > 50) {
-    return t.validation.columnHeader.maxLength
-  }
-  return true
-}
-
 // Computed - видимые колонки включая действия
 const visibleColumns = computed(() => {
-  const visibleSettings = columnSettings.value.filter(
-    (col: ColumnSetting) => col.visible
-  )
-  // Всегда добавляем колонку действий в конец
+  const visibleSettings = tableSettingsStore.visibleColumns
   return [
     ...visibleSettings,
     {
@@ -454,186 +387,68 @@ const visibleColumns = computed(() => {
   ]
 })
 
-// Генератор ID
-let nextId = 1
-
-// Загрузка данных из localStorage
-const loadAccounts = () => {
-  const saved = localStorage.getItem('accounts')
-  const savedSettings = localStorage.getItem('tableSettings')
-  const savedTags = localStorage.getItem('availableTags')
-
-  if (saved) {
-    const savedAccounts = JSON.parse(saved)
-    accounts.value = savedAccounts.map((acc: any) => ({
-      ...acc,
-      labelsArray: acc.labels ? acc.labels.map((label: any) => label.text) : [],
-      isValid: false,
-    }))
-    originalAccounts.value = JSON.parse(JSON.stringify(savedAccounts))
-
-    const maxId = accounts.value.reduce(
-      (max: number, acc: Account) => Math.max(max, acc.id),
-      0
-    )
-    nextId = maxId + 1
-  }
-
-  if (savedSettings) {
-    const settings = JSON.parse(savedSettings)
-    columnSettings.value = settings
-  }
-
-  if (savedTags) {
-    availableTags.value = JSON.parse(savedTags)
-  }
+// Event handlers
+const handleAddAccount = () => {
+  accountsStore.addNewAccount()
+  showInfo('newAccount')
 }
 
-// Сохранение данных в localStorage
-const saveAccounts = () => {
-  const accountsToSave = accounts.value.map((acc: Account) => ({
-    id: acc.id,
-    labels: acc.labelsArray
-      ? acc.labelsArray.map((text: string) => ({ text }))
-      : [],
-    type: acc.type,
-    login: acc.login,
-    password: acc.type === AccountType.LOCAL ? acc.password : null,
-    touched: acc.touched,
-  }))
-
-  localStorage.setItem('accounts', JSON.stringify(accountsToSave))
-  originalAccounts.value = JSON.parse(JSON.stringify(accountsToSave))
-  hasUnsavedChanges.value = false
-
-  toast.add({
-    severity: 'success',
-    summary: t.notifications.success.save.title,
-    detail: t.notifications.success.save.message,
-    life: 3000,
-  })
+const handleDeleteAccount = (id: number) => {
+  const account = accountsStore.deleteAccount(id)
+  showWarn('delete', account?.login)
 }
 
-// Добавление новой учетной записи
-const addNewAccount = () => {
-  const newAccount: Account = {
-    id: nextId++,
-    labelsArray: [],
-    type: null,
-    login: '',
-    password: '',
-    touched: false,
-    isValid: false,
-  }
-  accounts.value.push(newAccount)
-  hasUnsavedChanges.value = true
+const handleSaveAllChanges = () => {
+  accountsStore.markAllAsTouched()
 
-  toast.add({
-    severity: 'info',
-    summary: t.notifications.info.newAccount.title,
-    detail: t.notifications.info.newAccount.message,
-    life: 3000,
-  })
-}
-
-// Удаление учетной записи
-const deleteAccount = (id: number) => {
-  const account = accounts.value.find((acc: Account) => acc.id === id)
-  accounts.value = accounts.value.filter((acc: Account) => acc.id !== id)
-  hasUnsavedChanges.value = true
-
-  toast.add({
-    severity: 'warn',
-    summary: t.notifications.warn.delete.title,
-    detail: t.table.actions.deleteConfirmation(account?.login || ''),
-    life: 3000,
-  })
-}
-
-// Обработчик изменения типа учетной записи
-const onAccountTypeChange = (account: Account) => {
-  if (account.type === AccountType.LDAP) {
-    account.password = null
-  }
-  account.touched = true
-  hasUnsavedChanges.value = true
-}
-
-// Обработчик потери фокуса
-const onFieldBlur = (account: Account) => {
-  account.touched = true
-}
-
-// Обработчик изменения поля
-const onFieldChange = () => {
-  hasUnsavedChanges.value = true
-}
-
-// Обработчик валидации
-const onValidation = (account: Account, isValid: boolean) => {
-  account.isValid = isValid
-}
-
-// Сохранение всех изменений
-const saveAllChanges = () => {
-  // Помечаем все записи как touched для показа ошибок
-  accounts.value.forEach((account: Account) => {
-    account.touched = true
-  })
-
-  // Валидируем все записи перед сохранением
-  const allValid = accounts.value.every((account: Account) => account.isValid)
-
-  if (!allValid) {
-    toast.add({
-      severity: 'error',
-      summary: t.notifications.error.validation.title,
-      detail: t.notifications.error.validation.message,
-      life: 5000,
-    })
+  if (!accountsStore.validateAllAccounts) {
+    showError('validation')
     return
   }
 
-  saveAccounts()
+  accountsStore.saveAccounts()
+  showSuccess('save')
 }
 
-// Открытие настроек
-const openSettings = () => {
-  // Создаем временные копии настроек для редактирования
-  tempColumnSettings.value = JSON.parse(JSON.stringify(columnSettings.value))
-  tempAvailableTags.value = [...availableTags.value]
-  showSettings.value = true
+const handleOpenSettings = () => {
+  tableSettingsStore.openSettings()
 }
 
-// Применение настроек
-const applySettings = () => {
-  // Применяем изменения из временных настроек
-  columnSettings.value = JSON.parse(JSON.stringify(tempColumnSettings.value))
-  availableTags.value = [...tempAvailableTags.value]
-
-  localStorage.setItem('tableSettings', JSON.stringify(columnSettings.value))
-  localStorage.setItem('availableTags', JSON.stringify(availableTags.value))
-  showSettings.value = false
-
-  toast.add({
-    severity: 'success',
-    summary: t.notifications.success.settings.title,
-    detail: t.notifications.success.settings.message,
-    life: 3000,
-  })
+const handleApplySettings = () => {
+  tableSettingsStore.applySettings()
+  showSuccess('settings')
 }
 
-// Отмена настроек
-const cancelSettings = () => {
-  showSettings.value = false
+const handleCancelSettings = () => {
+  tableSettingsStore.cancelSettings()
 }
 
+// Field handlers
+const onAccountTypeChange = (account: any) => {
+  accountsStore.updateAccountType(account, account.type)
+}
+
+const onFieldBlur = (account: any) => {
+  accountsStore.markAccountTouched(account)
+}
+
+const onFieldChange = () => {
+  accountsStore.setHasUnsavedChanges(true)
+}
+
+const onValidation = (account: any, isValid: boolean) => {
+  accountsStore.setAccountValidation(account, isValid)
+}
+
+// Lifecycle
 onMounted(() => {
-  loadAccounts()
+  accountsStore.loadAccounts()
+  tableSettingsStore.loadSettings()
 })
 </script>
 
 <style scoped>
+/* Стили остаются без изменений */
 .account-management {
   padding: 1rem;
   margin: 0 2rem;
